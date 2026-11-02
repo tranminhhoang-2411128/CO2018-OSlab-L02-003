@@ -34,11 +34,11 @@ struct pcb_t *dequeue(struct queue_t *q)
         }
 
         int prior = MAX_PRIO + 1;
-        pcb_t* proc = NULL;
+        struct pcb_t* proc = NULL;
         for(int i = 0; i < q->size; i++){
                 if(q->proc[i]->priority < prior){
                         proc = q->proc[i];
-                        prior = proc->prioprity;
+                        prior = proc->priority;
                 }
         }
 
@@ -62,7 +62,7 @@ struct pcb_t *purgequeue(struct queue_t *q, struct pcb_t *proc)
         if(index == q->size)
                 return NULL;
 
-        pcb_t* return_proc = proc;
+        struct pcb_t* return_proc = q->proc[index];
         while(index < q->size - 1){
                 q->proc[index] = q->proc[index+1];
                 index++; 
