@@ -68,7 +68,7 @@ struct pcb_t * get_mlq_proc(void) {
 	
 	for (int times = 0; times <= MAX_PRIO; times++){
 		if(curr_slot < slot[prio] && !empty(mlq_ready_queue[prio])){
-			proc = dequeue(mlq_ready_queue[prio]);
+			proc = dequeue(&mlq_ready_queue[prio]);
 			curr_slot++;
 		}
 		else{
@@ -89,12 +89,14 @@ void put_mlq_proc(struct pcb_t * proc) {
 	proc->krnl->mlq_ready_queue = mlq_ready_queue;
 	proc->krnl->running_list = &running_list;
 
-	/* TODO: put running proc to running_list 
+	/* TODO: put running proc from running_list
+	*				to mlq_ready_queue  
 	 *       It worth to protect by a mechanism.
 	 * 
 	 */
 
 	pthread_mutex_lock(&queue_lock);
+	purgequeue(&running_list, proc);
 	enqueue(&mlq_ready_queue[proc->prio], proc);
 	pthread_mutex_unlock(&queue_lock);
 }
@@ -104,7 +106,7 @@ void add_mlq_proc(struct pcb_t * proc) {
 	proc->krnl->mlq_ready_queue = mlq_ready_queue;
 	proc->krnl->running_list = &running_list;
 
-	/* TODO: put running proc to running_list
+	/* TODO: put proc to mlq_ready_queue
 	 *       It worth to protect by a mechanism.
 	 * 
 	 */
