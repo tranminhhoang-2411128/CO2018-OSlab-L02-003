@@ -66,8 +66,8 @@ struct pcb_t * get_mlq_proc(void) {
 	 *      It worth to protect by a mechanism.
 	 * */
 	
-	for (int times = 0; times <= MAX_PRIO; times++){
-		if(curr_slot < slot[prio] && !empty(mlq_ready_queue[prio])){
+	for (int times = 0; times <= MAX_PRIO && proc == NULL; times++){
+		if(curr_slot < slot[prio] && !empty(&mlq_ready_queue[prio])){
 			proc = dequeue(&mlq_ready_queue[prio]);
 			curr_slot++;
 		}
