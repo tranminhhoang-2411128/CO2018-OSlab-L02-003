@@ -1,3 +1,19 @@
-.vscode
+# IDE configuration
+.vscode/
+
+# Compiled object files
 obj/
+*.o
+
+# Executable files
 os
+mem
+sched
+pdg
+dma_testbench
+
+# Simulation waveform
+*.vcd
+
+# Generated files
+src/syscalltbl.lst
