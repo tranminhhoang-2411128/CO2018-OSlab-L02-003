@@ -2,8 +2,6 @@
 #include <stdlib.h>
 #include "queue.h"
 
-#define MAX_PRIO 140
-
 int empty(struct queue_t *q)
 {
         if (q == NULL)
@@ -16,6 +14,8 @@ void enqueue(struct queue_t *q, struct pcb_t *proc)
         /* TODO: put a new process to queue [q] */
         if(q == NULL || proc == NULL)
                 return;
+
+        // Skip if the queue is full
         if(q->size >= MAX_QUEUE_SIZE)
                 return;
 
@@ -33,12 +33,10 @@ struct pcb_t *dequeue(struct queue_t *q)
                 return NULL;
         }
 
-        int prior = MAX_PRIO + 1;
-        struct pcb_t* proc = NULL;
-        for(int i = 0; i < q->size; i++){
-                if(q->proc[i]->priority < prior){
+        struct pcb_t* proc = q->proc[0];
+        for(int i = 1; i < q->size; i++){
+                if(q->proc[i]->priority < proc->priority){
                         proc = q->proc[i];
-                        prior = proc->priority;
                 }
         }
 
