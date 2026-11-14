@@ -137,19 +137,50 @@ int validate_overlap_vm_area(struct pcb_t *caller, int vmaid, addr_t vmastart, a
  */
 int inc_vma_limit(struct pcb_t *caller, int vmaid, addr_t inc_sz)
 {
-  /* TOTO with new address scheme, the size need tobe aligned 
+  /* TODO with new address scheme, the size need tobe aligned 
    *      the raw inc_sz maybe not fit pagesize
    */ 
+  if(inc_sz == 0)
+    return -1;
+
+  addr_t aligned_inc_sz = PAGING64_PAGE_ALIGNSZ(inc_sz);
+  int inc_num_page = aligned_inc_sz / PAGING64_PAGESZ; 
+
+  struct vm_area_struct *cur_vma = get_vma_by_num(caller->krnl->mm, vmaid);
+  if(cur_vma == NULL)
+    return -1;
+
+  struct vm_rg_struct *area = get_vm_area_node_at_brk(caller, vmaid, aligned_inc_sz);
+  if (area == NULL)
+    return -1;
 
   /* 
    * TODO Validate overlap of obtained region 
-   *if (validate_overlap_vm_area(caller, vmaid, area->rg_start, area->rg_end) < 0)
-   *   return -1;  //Overlap and failed allocation 
    */
+  if (validate_overlap_vm_area(caller, vmaid, area->rg_start, area->rg_end) < 0)
+  {
+    free(area);  
+    return -1;  //Overlap and failed allocation 
+  }
 
   /* TODO: Obtain the new vm area based on vmaid */
+  addr_t old_end = cur_vma->vm_end;
+  
+  struct vm_rg_struct* newrg = malloc(sizeof(struct vm_rg_struct));
+  if(newrg == NULL){
+    free(area);
+    return -1;
+  }
+  
+  if((int)vm_map_ram(caller, area->rg_start, area->rg_end, old_end, inc_num_page, newrg) < 0){
+    free(newrg);
+    free(area);
+    return -1;
+  }
 
-
+  cur_vma->vm_end = old_end + aligned_inc_sz;
+  free(newrg);
+  free(area);
   return 0;
 }
 
