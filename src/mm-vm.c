@@ -172,11 +172,13 @@ int inc_vma_limit(struct pcb_t *caller, int vmaid, addr_t inc_sz)
     return -1;
   }
   
-  if((int)vm_map_ram(caller, area->rg_start, area->rg_end, old_end, inc_num_page, newrg) < 0){
+  struct framephy_struct *frames = NULL;
+  if(vmap_page_range(caller, area->rg_start, inc_num_page, frame, newrg) < 0){
     free(newrg);
     free(area);
     return -1;
   }
+
 
   cur_vma->vm_end = old_end + aligned_inc_sz;
   free(newrg);
