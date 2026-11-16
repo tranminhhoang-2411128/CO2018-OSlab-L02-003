@@ -30,8 +30,8 @@ int __sys_memmap(struct krnl_t *krnl, uint32_t pid, struct sc_regs* regs)
     * TODO THIS DUMMY CREATE EMPTY PROC TO AVOID COMPILER NOTIFY 
     *      need to be eliminated
 	*/
-   struct pcb_t *caller = malloc(sizeof(struct pcb_t));
-   caller->krnl = malloc(sizeof(struct krnl_t));
+   //struct pcb_t *caller = malloc(sizeof(struct pcb_t));
+   //caller->krnl = malloc(sizeof(struct krnl_t));
 
    /*
     * @bksysnet: Please note in the dual spacing design
@@ -45,7 +45,16 @@ int __sys_memmap(struct krnl_t *krnl, uint32_t pid, struct sc_regs* regs)
     /* TODO Maching and marking the process */
     /* user process are not allowed to access directly pcb in kernel space of syscall */
     //....
-
+struct pcb_t *caller = NULL;
+struct pcb_t *curr_proc = NULL;
+for (int i = 0; i < krnl->running_list->size; i++){
+    curr_proc = krnl->running_list->proc[i];
+    if (curr_proc->pid == pid){
+        caller = curr_proc;
+        break;
+    }
+    curr_proc = NULL;
+}
    switch (memop) {
    case SYSMEM_MAP_OP:
             /* Reserved process case*/
@@ -68,6 +77,7 @@ int __sys_memmap(struct krnl_t *krnl, uint32_t pid, struct sc_regs* regs)
             printf("Memop code: %d\n", memop);
             break;
    }
-   
+   curr_proc = NULL;
+   caller = NULL;
    return 0;
 }

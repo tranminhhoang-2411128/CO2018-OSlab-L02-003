@@ -178,6 +178,7 @@ int liballoc(struct pcb_t *proc, addr_t size, uint32_t reg_index)
   }
 #ifdef IODUMP
   /* TODO dump IO content (if needed) */
+  printf("Allocated %lu bytes for Process %d\n", size, proc->pid);
 #ifdef PAGETBL_DUMP
   print_pgtbl(proc, 0, -1); // print max TBL
 #endif
@@ -203,6 +204,7 @@ int libfree(struct pcb_t *proc, uint32_t reg_index)
 printf("%s:%d\n",__func__,__LINE__);
 #ifdef IODUMP
   /* TODO dump IO content (if needed) */
+  printf("Freed allocated memory for Process %d\n", proc->pid);
 #ifdef PAGETBL_DUMP
   print_pgtbl(proc, 0, -1); // print max TBL
 #endif
@@ -230,7 +232,7 @@ int pg_getpage(struct mm_struct *mm, int pgn, int *fpn, struct pcb_t *caller)
     struct sc_regs regs;
 
     /* TODO Initialize the target frame storing our variable */
-//  addr_t tgtfpn 
+//  addr_t tgtfpn; 
 
     /* TODO: Play with your paging theory here */
     /* Find victim page */
@@ -238,7 +240,7 @@ int pg_getpage(struct mm_struct *mm, int pgn, int *fpn, struct pcb_t *caller)
     {
       return -1;
     }
-
+//vicpte = pte_get_entry(caller->mm, vicpgn, caller);
     /* Get free frame in MEMSWP */
     if (MEMPHY_get_freefp(caller->krnl->active_mswp, &swpfpn) == -1)
     {
@@ -251,13 +253,19 @@ int pg_getpage(struct mm_struct *mm, int pgn, int *fpn, struct pcb_t *caller)
      * SWP(vicfpn <--> swpfpn)
      * SYSCALL 1 sys_memmap
      */
-
+    
+regs.a1 = SYSMEM_SWP_OP;
+regs.a2 = vicfpn;
+regs.a3 = swpfpn;
+_syscall(caller->krnl, caller->pid, 17, &regs);
 
     /* Update page table */
-    //pte_set_swap(...);
+    //addr_t swpoff = abs(vicfpn - swpfpn);
+    addr_t swpoff = 0;
+    pte_set_swap(caller, vicpgn, 1, swpoff);//Swap out
 
     /* Update its online status of the target page */
-    //pte_set_fpn(...);
+    pte_set_fpn(mm, pgn, swpfpn, caller);
 
     enlist_pgn_node(&caller->mm->fifo_pgn, pgn);
   }
@@ -276,20 +284,24 @@ int pg_getpage(struct mm_struct *mm, int pgn, int *fpn, struct pcb_t *caller)
 int pg_getval(struct mm_struct *mm, int addr, BYTE *data, struct pcb_t *caller)
 {
   int pgn = PAGING_PGN(addr);
-//int off = ...
+int off = PAGING_OFFST(addr);
   int fpn;
 
   if (pg_getpage(mm, pgn, &fpn, caller) != 0)
     return -1; /* invalid page access */
 
-//int phyaddr = ...
+int phyaddr = fpn + off;
 
   /* TODO 
    *  MEMPHY_read(caller->krnl->mram, phyaddr, data);
    *  MEMPHY READ 
    *  SYSCALL 17 sys_memmap with SYSMEM_IO_READ
    */
-
+struct sc_regs regs;
+regs.a1 = SYSMEM_IO_READ;
+regs.a2 = phyaddr;
+regs.a3 = data;
+_syscall(caller->krnl, caller->pid, 17, &regs);
   return 0;
 }
 
@@ -302,20 +314,24 @@ int pg_getval(struct mm_struct *mm, int addr, BYTE *data, struct pcb_t *caller)
 int pg_setval(struct mm_struct *mm, int addr, BYTE value, struct pcb_t *caller)
 {
   int pgn = PAGING_PGN(addr);
-//int off = ...
+int off = PAGING_OFFST(addr);
   int fpn;
 
   /* Get the page to MEMRAM, swap from MEMSWAP if needed */
   if (pg_getpage(mm, pgn, &fpn, caller) != 0)
     return -1; /* invalid page access */
-
+int phyaddr = fpn + off;
 
   /* TODO 
    *  MEMPHY_write(caller->krnl->mram, phyaddr, value);
    *  MEMPHY WRITE with SYSMEM_IO_WRITE 
    * SYSCALL 17 sys_memmap
    */
-
+struct sc_regs regs;
+regs.a1 = SYSMEM_IO_WRITE;
+regs.a2 = phyaddr;
+regs.a3 = value;
+_syscall(caller->krnl, caller->pid, 17, &regs);
   return 0;
 }
 
@@ -331,9 +347,13 @@ int __read(struct pcb_t *caller, int vmaid, int rgid, addr_t offset, BYTE *data)
 {
   struct vm_rg_struct *currg = get_symrg_byid(caller->mm, rgid);
 
-//struct vm_area_struct *cur_vma = get_vma_by_num(caller->krnl->mm, vmaid);
+struct vm_area_struct *cur_vma = get_vma_by_num(caller->krnl->mm, vmaid);
 
   /* TODO Invalid memory identify */
+  if (currg == NULL || cur_vma == NULL) /* Invalid memory identify */
+  {
+    return -1;
+  }  
 
   pg_getval(caller->krnl->mm, currg->rg_start + offset, data, caller);
 
@@ -354,6 +374,7 @@ printf("%s:%d\n",__func__,__LINE__);
   *destination = data;
 #ifdef IODUMP
   /* TODO dump IO content (if needed) */
+  printf("Process %d called libread at %p\n", proc->pid, destination);
 #ifdef PAGETBL_DUMP
   print_pgtbl(proc, 0, -1); // print max TBL
 #endif
@@ -403,6 +424,7 @@ int libwrite(
   }
 #ifdef IODUMP
   /* TODO dump IO content (if needed) */
+  printf("Process %d called libwrite at symrgtbl[%d]\n", proc->pid, destination);
 #ifdef PAGETBL_DUMP
   print_pgtbl(proc, 0, -1); // print max TBL
 #endif
