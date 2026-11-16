@@ -178,7 +178,7 @@ int liballoc(struct pcb_t *proc, addr_t size, uint32_t reg_index)
   }
 #ifdef IODUMP
   /* TODO dump IO content (if needed) */
-  printf("Allocated %llu bytes for Process %d\n", size >> 3, proc->pid);
+  printf("Allocated %lu bytes for Process %d\n", size, proc->pid);
 #ifdef PAGETBL_DUMP
   print_pgtbl(proc, 0, -1); // print max TBL
 #endif
@@ -232,7 +232,7 @@ int pg_getpage(struct mm_struct *mm, int pgn, int *fpn, struct pcb_t *caller)
     struct sc_regs regs;
 
     /* TODO Initialize the target frame storing our variable */
-//  addr_t tgtfpn 
+//  addr_t tgtfpn; 
 
     /* TODO: Play with your paging theory here */
     /* Find victim page */
@@ -240,7 +240,7 @@ int pg_getpage(struct mm_struct *mm, int pgn, int *fpn, struct pcb_t *caller)
     {
       return -1;
     }
-
+//vicpte = pte_get_entry(caller->mm, vicpgn, caller);
     /* Get free frame in MEMSWP */
     if (MEMPHY_get_freefp(caller->krnl->active_mswp, &swpfpn) == -1)
     {
@@ -253,13 +253,19 @@ int pg_getpage(struct mm_struct *mm, int pgn, int *fpn, struct pcb_t *caller)
      * SWP(vicfpn <--> swpfpn)
      * SYSCALL 1 sys_memmap
      */
-
+    
+regs.a1 = SYSMEM_SWP_OP;
+regs.a2 = vicfpn;
+regs.a3 = swpfpn;
+_syscall(caller->krnl, caller->pid, 17, &regs);
 
     /* Update page table */
-    //pte_set_swap(...);
+    //addr_t swpoff = abs(vicfpn - swpfpn);
+    addr_t swpoff = 0;
+    pte_set_swap(caller, vicpgn, 1, swpoff);//Swap out
 
     /* Update its online status of the target page */
-    //pte_set_fpn(...);
+    pte_set_fpn(mm, pgn, swpfpn, caller);
 
     enlist_pgn_node(&caller->mm->fifo_pgn, pgn);
   }
