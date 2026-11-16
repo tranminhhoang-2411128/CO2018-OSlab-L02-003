@@ -56,6 +56,8 @@ void init_scheduler(void) {
  *  We implement stateful here using transition technique
  *  State representation   prio = 0 .. MAX_PRIO, curr_slot = 0..(MAX_PRIO - prio)
  */
+static int prio = 0;
+static int curr_slot = 0;
 struct pcb_t * get_mlq_proc(void) {
 	struct pcb_t * proc = NULL;
 
@@ -63,9 +65,22 @@ struct pcb_t * get_mlq_proc(void) {
 	/*TODO: get a process from PRIORITY [ready_queue].
 	 *      It worth to protect by a mechanism.
 	 * */
+	
+	for (int times = 0; times <= MAX_PRIO && proc == NULL; times++){
+		if(curr_slot < slot[prio] && !empty(&mlq_ready_queue[prio])){
+			proc = dequeue(&mlq_ready_queue[prio]);
+			curr_slot++;
+		}
+		else{
+			prio = (prio + 1) % MAX_PRIO;
+			curr_slot = 0;
+		}
+	}
 
-	if (proc != NULL)
+	if(proc != NULL){
 		enqueue(&running_list, proc);
+	}
+	pthread_mutex_unlock(&queue_lock);
 	return proc;	
 }
 
@@ -74,12 +89,14 @@ void put_mlq_proc(struct pcb_t * proc) {
 	proc->krnl->mlq_ready_queue = mlq_ready_queue;
 	proc->krnl->running_list = &running_list;
 
-	/* TODO: put running proc to running_list 
+	/* TODO: put running proc from running_list
+	*				to mlq_ready_queue  
 	 *       It worth to protect by a mechanism.
 	 * 
 	 */
 
 	pthread_mutex_lock(&queue_lock);
+	purgequeue(&running_list, proc);
 	enqueue(&mlq_ready_queue[proc->prio], proc);
 	pthread_mutex_unlock(&queue_lock);
 }
@@ -89,7 +106,7 @@ void add_mlq_proc(struct pcb_t * proc) {
 	proc->krnl->mlq_ready_queue = mlq_ready_queue;
 	proc->krnl->running_list = &running_list;
 
-	/* TODO: put running proc to running_list
+	/* TODO: put proc to mlq_ready_queue
 	 *       It worth to protect by a mechanism.
 	 * 
 	 */
