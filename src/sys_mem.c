@@ -45,7 +45,7 @@ int __sys_memmap(struct krnl_t *krnl, uint32_t pid, struct sc_regs* regs)
     /* TODO Maching and marking the process */
     /* user process are not allowed to access directly pcb in kernel space of syscall */
     //....
-struct pcb_t *caller = malloc(sizeof(struct pcb_t));
+struct pcb_t *caller = NULL;
 struct pcb_t *curr_proc = NULL;
 for (int i = 0; i < krnl->running_list->size; i++){
     curr_proc = krnl->running_list->proc[i];
@@ -78,6 +78,6 @@ for (int i = 0; i < krnl->running_list->size; i++){
             break;
    }
    curr_proc = NULL;
-   free(caller);
+   caller = NULL;
    return 0;
 }
