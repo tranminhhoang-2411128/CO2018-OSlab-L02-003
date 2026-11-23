@@ -201,14 +201,18 @@ addr_t pte_get_entry(struct mm_struct *mm, addr_t pgn, struct pcb_t *caller)
   /* TODO Perform multi-level page mapping */
   get_pd_from_pagenum(pgn, &pgd, &p4d, &pud, &pmd, &pt);
   
-  if (krnl->mm->pgd[pgd] == 0) 
-    return 0;
+  if (krnl->mm->pgd[pgd] == 0) return 0;
   addr_t *p4d_table = krnl->mm->pgd[pgd];
+
+  if (p4d_table[p4d] == 0) return 0;
   addr_t *pud_table = p4d_table[p4d];
+
+  if (pud_table[pud] == 0) return 0;
   addr_t *pmd_table = pud_table[pud];
+
+  if (pmd_table[pmd] == 0) return 0;
   addr_t *pt_table =  pmd_table[pmd];
-  
-  
+
   pte = &pt_table[pt];
 #else	
   pte = &krnl->mm->pgd[pgn];
@@ -239,9 +243,53 @@ int pte_set_entry(struct mm_struct *mm, addr_t pgn, uint64_t pte_val, struct pcb
   /* Get value from the system */
   /* TODO Perform multi-level page mapping */
   get_pd_from_pagenum(pgn, &pgd, &p4d, &pud, &pmd, &pt);
-  //... krnl->mm->pgd
-  //... krnl->mm->pt
-  //pte = &krnl->mm->pt;
+
+  if (krnl->mm->pgd[pgd] == 0){
+    int entries = 1 << (PAGING64_ADDR_P4D_HIBIT - PAGING64_ADDR_P4D_LOBIT + 1);
+    addr_t *new_table = malloc(entries * sizeof(addr_t));
+    if (new_table == NULL) 
+      return -1;
+
+    memset(new_table, 0, entries * sizeof(addr_t));
+    krnl->mm->pgd[pgd]  = new_table;
+  }
+  addr_t *p4d_table = krnl->mm->pgd[pgd];
+
+  if (p4d_table[p4d] == 0)
+  {
+    int entries = 1 << (PAGING64_ADDR_PUD_HIBIT - PAGING64_ADDR_PUD_LOBIT + 1);
+    addr_t *new_table = malloc(entries * sizeof(addr_t));
+    if (new_table == NULL) 
+      return -1;
+
+    memset(new_table, 0, entries * sizeof(addr_t));
+    p4d_table[p4d] = new_table;
+  }
+  addr_t *pud_table = p4d_table[p4d];
+
+  if (pud_table[pud] == 0)  {
+    int entries = 1 << (PAGING64_ADDR_PMD_HIBIT - PAGING64_ADDR_PMD_LOBIT + 1);
+    addr_t *new_table = malloc(entries * sizeof(addr_t));
+    if (new_table == NULL) 
+      return -1;
+
+    memset(new_table, 0, entries * sizeof(addr_t));
+    pud_table[pud] = new_table;
+  }
+  addr_t *pmd_table = pud_table[pud];
+
+  if (pmd_table[pmd] == 0)  {
+    int entries = 1 << (PAGING64_ADDR_PT_HIBIT - PAGING64_ADDR_PT_LOBIT + 1);
+    addr_t *new_table = malloc(entries * sizeof(addr_t));
+    if (new_table == NULL) 
+      return -1;
+
+    memset(new_table, 0, entries * sizeof(addr_t));
+    pmd_table[pmd] = new_table;
+  }
+  addr_t *pt_table =  pmd_table[pmd];
+
+  pt_table[pt] = pte_val;
 #else	
   pte = pte_val;
 #endif
