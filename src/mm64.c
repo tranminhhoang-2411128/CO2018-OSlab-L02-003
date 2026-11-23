@@ -21,41 +21,7 @@
 
 #if defined(MM64)
 
-  addr_t *go_to_pte(struct mm_struct *mm, addr_t pgn, int create)   
-{
-  addr_t pgd=0;
-  addr_t p4d=0;
-  addr_t pud=0;
-  addr_t pmd=0;
-  addr_t pt=0;
 
-  get_pd_from_pagenum(pgn, &pgd, &p4d, &pud, &pmd, &pt);
-
-  if (mm->pgd[pgd] == 0) {
-    if (create == 0) return NULL;
-    mm->pgd[pgd] = calloc(512, sizeof(addr_t));
-  }
-  addr_t *p4d_table = (addr_t *)mm->pgd[pgd];
-
-  if (p4d_table[p4d] == 0) {
-    if (create == 0) return NULL;
-    p4d_table[p4d] = calloc(512, sizeof(addr_t));
-  }
-  addr_t *pud_table = (addr_t *)p4d_table[p4d];
-
-  if (pud_table[pud] == 0) {
-    if (create == 0) return NULL;
-    pud_table[pud] = calloc(512, sizeof(addr_t));
-  }
-  addr_t *pmd_table = (addr_t *)pud_table[pud];
-
-  if (pmd_table[pmd] == 0) {
-    if (create == 0) return NULL;
-    pmd_table[pmd] = calloc(512, sizeof(addr_t));
-  }
-  addr_t *pt_table = (addr_t *)pmd_table[pmd];
-  return &pt_table[pt];
-}
 
 /*
  * init_pte - Initialize PTE entry
@@ -224,21 +190,31 @@ addr_t pte_get_entry(struct mm_struct *mm, addr_t pgn, struct pcb_t *caller)
   struct krnl_t *krnl = caller->krnl;
 
   addr_t *pte = NULL;
-
+  addr_t pgd=0;
+  addr_t p4d=0;
+  addr_t pud=0;
+  addr_t pmd=0;
+  addr_t pt=0;
+	
   // dummy pte alloc to avoid runtime error
   pte = malloc(sizeof(addr_t));
 #ifdef MM64	
   /* Get value from the system */
   /* TODO Perform multi-level page mapping */
-  //get_pd_from_pagenum(pgn, &pgd, &p4d, &pud, &pmd, &pt);
-  //... krnl->mm->pgd
-  //... krnl->mm->pt
-  //pte = &krnl->mm->pt;
-*pte = go_to_pte(mm, pgn, 0);
+  get_pd_from_pagenum(pgn, &pgd, &p4d, &pud, &pmd, &pt);
+  
+  if (krnl->mm->pgd[pgd] == 0) {
+    return NULL;
+  }
 
-if (*pte == NULL) {
-    return 0; 
-}
+  addr_t *p4d_table = krnl->mm->pgd[pgd];
+  addr_t *pud_table = p4d_table[p4d];
+  addr_t *pmd_table = pud_table[pud];
+  addr_t *pt_table =  pmd_table[pmd];
+  
+  
+  //... krnl->mm->pt
+  pte = &pt_table[pt];
 #else	
   pte = &krnl->mm->pgd[pgn];
 #endif
@@ -256,19 +232,21 @@ int pte_set_entry(struct mm_struct *mm, addr_t pgn, uint64_t pte_val, struct pcb
   struct krnl_t *krnl = caller->krnl;
 
   addr_t *pte = NULL;
-
+  addr_t pgd=0;
+  addr_t p4d=0;
+  addr_t pud=0;
+  addr_t pmd=0;
+  addr_t pt=0;
 	
   // dummy pte alloc to avoid runtime error
   pte = malloc(sizeof(addr_t));
 #ifdef MM64	
   /* Get value from the system */
   /* TODO Perform multi-level page mapping */
-  //get_pd_from_pagenum(pgn, &pgd, &p4d, &pud, &pmd, &pt);
+  get_pd_from_pagenum(pgn, &pgd, &p4d, &pud, &pmd, &pt);
   //... krnl->mm->pgd
   //... krnl->mm->pt
   //pte = &krnl->mm->pt;
-  *pte = go_to_pte(mm, pgn, 1);
-  *pte = pte_val;
 #else	
   pte = pte_val;
 #endif
