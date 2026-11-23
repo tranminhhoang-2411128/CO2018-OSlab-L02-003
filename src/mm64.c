@@ -21,8 +21,6 @@
 
 #if defined(MM64)
 
-
-
 /*
  * init_pte - Initialize PTE entry
  */
@@ -203,23 +201,20 @@ addr_t pte_get_entry(struct mm_struct *mm, addr_t pgn, struct pcb_t *caller)
   /* TODO Perform multi-level page mapping */
   get_pd_from_pagenum(pgn, &pgd, &p4d, &pud, &pmd, &pt);
   
-  if (krnl->mm->pgd[pgd] == 0) {
-    return NULL;
-  }
-
+  if (krnl->mm->pgd[pgd] == 0) 
+    return 0;
   addr_t *p4d_table = krnl->mm->pgd[pgd];
   addr_t *pud_table = p4d_table[p4d];
   addr_t *pmd_table = pud_table[pud];
   addr_t *pt_table =  pmd_table[pmd];
   
   
-  //... krnl->mm->pt
   pte = &pt_table[pt];
 #else	
   pte = &krnl->mm->pgd[pgn];
 #endif
 
-  return (addr_t) &pte;
+  return *pte;
 }
 
 /* Set PTE page table entry
