@@ -161,7 +161,6 @@ int pte_set_fpn(struct mm_struct *mm, addr_t pgn, addr_t fpn, struct pcb_t *call
   /* Get value from the system */
   /* TODO Perform multi-level page mapping */
   *pte = pte_get_entry(mm, pgn, caller);
-  if(*pte == 0) return -1;
 
 #else
   pte = &krnl->mm->pgd[pgn];
@@ -169,8 +168,10 @@ int pte_set_fpn(struct mm_struct *mm, addr_t pgn, addr_t fpn, struct pcb_t *call
 
   SETBIT(*pte, PAGING_PTE_PRESENT_MASK);
   CLRBIT(*pte, PAGING_PTE_SWAPPED_MASK);
-
   SETVAL(*pte, fpn, PAGING_PTE_FPN_MASK, PAGING_PTE_FPN_LOBIT);
+
+  if(pte_set_entry(mm, pgn, *pte, caller) != 0)
+    return -1;
 
   return 0;
 }
