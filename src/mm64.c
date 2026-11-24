@@ -149,21 +149,20 @@ int pte_set_fpn(struct mm_struct *mm, addr_t pgn, addr_t fpn, struct pcb_t *call
   struct krnl_t *krnl = caller->krnl;
 
   addr_t *pte = NULL;
-  addr_t pgd=0;
-  addr_t p4d=0;
-  addr_t pud=0;
-  addr_t pmd=0;
-  addr_t pt=0;
+  // addr_t pgd=0;
+  // addr_t p4d=0;
+  // addr_t pud=0;
+  // addr_t pmd=0;
+  // addr_t pt=0;
 	
   // dummy pte alloc to avoid runtime error
   pte = malloc(sizeof(addr_t));
 #ifdef MM64	
   /* Get value from the system */
   /* TODO Perform multi-level page mapping */
-  get_pd_from_pagenum(pgn, &pgd, &p4d, &pud, &pmd, &pt);
-  //... krnl->mm->pgd
-  //... krnl->mm->pt
-  //pte = &krnl->mm->pt;
+  *pte = pte_get_entry(mm, pgn, caller);
+  if(*pte == 0) return -1;
+
 #else
   pte = &krnl->mm->pgd[pgn];
 #endif
