@@ -447,7 +447,7 @@ int libkmem_malloc(struct pcb_t * caller, uint32_t size, uint32_t reg_index)
    *       and forward the request to helper
    */
 addr_t  addr;
-int val = __kmalloc(caller, 0, reg_index, size, addr);
+int val = __kmalloc(caller, 0, 0, size, &addr);
 
   /* 
    * TODO: provide OS kmem allocation validation
@@ -455,6 +455,7 @@ int val = __kmalloc(caller, 0, reg_index, size, addr);
 if (val == -1){
   return -1;
 }
+caller->regs[reg_index] = addr;
   return 0;
 }
 
@@ -473,8 +474,10 @@ addr_t __kmalloc(struct pcb_t *caller, int vmaid, int rgid, addr_t size, addr_t 
 pthread_mutex_lock(&kmm_lock);
   struct krnl_t *krnl = caller->krnl;
   addr_t fpn;
+  addr_t mask = GENMASK64(MM64_BITS_PER_LONG - 1, PAGING64_ADDR_PGD_HIBIT + 1);
 
-  if (size <= PAGING64_PAGESZ && MEMPHY_get_freefp(krnl->mram, fpn) == 0){
+  if (size <= PAGING64_PAGESZ && MEMPHY_get_freefp(krnl->mram, &fpn) == 0){
+    *alloc_addr = (fpn << PAGING64_ADDR_PT_SHIFT) | (mask);
     //krnl->krnl_pgd ...
     pthread_mutex_unlock(&kmm_lock);
     return 0;
