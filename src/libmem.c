@@ -446,13 +446,15 @@ int libkmem_malloc(struct pcb_t * caller, uint32_t size, uint32_t reg_index)
    * TODO: provide OS level management
    *       and forward the request to helper
    */
-//addr_t  addr;
-//int val = ...
+addr_t  addr;
+int val = __kmalloc(caller, 0, reg_index, size, addr);
 
   /* 
    * TODO: provide OS kmem allocation validation
    */
-
+if (val == -1){
+  return -1;
+}
   return 0;
 }
 
@@ -468,11 +470,18 @@ addr_t __kmalloc(struct pcb_t *caller, int vmaid, int rgid, addr_t size, addr_t 
 {
   /* TODO: provide OS kernel memory allocation
    *       update krnl_pgd for OS kernel level management */
+pthread_mutex_lock(&kmm_lock);
+  struct krnl_t *krnl = caller->krnl;
+  addr_t fpn;
 
-  //struct krnl_t *krnl = caller->krnl;
+  if (size <= PAGING64_PAGESZ && MEMPHY_get_freefp(krnl->mram, fpn) == 0){
+    //krnl->krnl_pgd ...
+    pthread_mutex_unlock(&kmm_lock);
+    return 0;
+  }
   //krnl->symrgtbl...
   //krnl->krnl_pgd ...
-
+pthread_mutex_unlock(&kmm_lock);
   return 0;
 
 }
