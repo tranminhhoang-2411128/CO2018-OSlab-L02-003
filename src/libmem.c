@@ -472,22 +472,30 @@ addr_t __kmalloc(struct pcb_t *caller, int vmaid, int rgid, addr_t size, addr_t 
    *       update krnl_pgd for OS kernel level management */
 pthread_mutex_lock(&kmm_lock);
   struct krnl_t *krnl = caller->krnl;
-  struct vm_rg_struct rgnode;
   addr_t fpn;
   addr_t mask = GENMASK64(MM64_BITS_PER_LONG - 1, PAGING64_ADDR_PGD_HIBIT + 1);
 
   if (size <= PAGING64_PAGESZ && MEMPHY_get_freefp(krnl->mram, &fpn) == 0){
-    SETBIT(fpn, mask);
     addr_t addr = (fpn << PAGING64_ADDR_PT_SHIFT);
-    get_pd_from_address(addr, &(krnl->krnl_pgd), &(krnl->krnl_p4d),
-                      &(krnl->krnl_pud), &(krnl->krnl_pmd), &(krnl->krnl_pt));
+    SETBIT(addr, mask);
 
-    rgnode = krnl->symrgtbl[rgid];
-    rgnode.vmaid = vmaid;
-    rgnode.rg_start = addr;
-    rgnode.rg_end = addr + PAGING64_PAGE_ALIGNSZ(size);
-    rgnode.rg_next = NULL;
-    
+    /*if (pte_set_fpn(caller->mm, addr >> PAGING64_ADDR_PT_SHIFT, fpn, caller) == -1){
+      MEMPHY_put_freefp(krnl->mram, fpn);
+      pthread_mutex_unlock(&kmm_lock);
+      return -1;
+    } update pte_set_fpn to walk krnl->krnl_pgd on condition first*/
+
+    if (krnl->symrgtbl[rgid].rg_start != 0){
+      pthread_mutex_unlock(&kmm_lock);
+      return -1;      
+    }
+
+    krnl->symrgtbl[rgid].vmaid = vmaid;
+    krnl->symrgtbl[rgid].rg_start = addr;
+    krnl->symrgtbl[rgid].rg_end = addr + PAGING64_PAGE_ALIGNSZ(size);
+    krnl->symrgtbl[rgid].rg_next = NULL;
+
+    *alloc_addr = addr;
     pthread_mutex_unlock(&kmm_lock);
     return 0;
   }
