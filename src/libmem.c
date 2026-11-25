@@ -485,14 +485,9 @@ pthread_mutex_lock(&kmm_lock);
       return -1;
     } update pte_set_fpn to walk krnl->krnl_pgd on condition first*/
 
-    if (krnl->symrgtbl[rgid].rg_start != 0){
-      pthread_mutex_unlock(&kmm_lock);
-      return -1;      
-    }
-
     krnl->symrgtbl[rgid].vmaid = vmaid;
     krnl->symrgtbl[rgid].rg_start = addr;
-    krnl->symrgtbl[rgid].rg_end = addr + PAGING64_PAGE_ALIGNSZ(size);
+    krnl->symrgtbl[rgid].rg_end = addr + PAGING64_PAGESZ;
     krnl->symrgtbl[rgid].rg_next = NULL;
 
     *alloc_addr = addr;
@@ -502,7 +497,7 @@ pthread_mutex_lock(&kmm_lock);
   //krnl->symrgtbl...
   //krnl->krnl_pgd ...
 pthread_mutex_unlock(&kmm_lock);
-  return 0;
+  return -1; //temporary
 
 }
 
