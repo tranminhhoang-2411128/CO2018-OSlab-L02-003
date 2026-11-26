@@ -209,22 +209,22 @@ addr_t pte_get_entry(struct mm_struct *mm, addr_t pgn, struct pcb_t *caller)
 
   if ((pgn&mask)>>(PAGING64_ADDR_PGD_HIBIT+1) > 0){
     if (krnl->krnl_pgd[pgd] == 0) return 0;
-    p4d_table = krnl->krnl_pgd[pgd];
+    p4d_table = (addr_t*)krnl->krnl_pgd[pgd];
   }
 
   else{
     if (krnl->mm->pgd[pgd] == 0) return 0;
-    p4d_table = krnl->mm->pgd[pgd];
+    p4d_table = (addr_t*)krnl->mm->pgd[pgd];
   }
 
   if (p4d_table[p4d] == 0) return 0;
-  addr_t *pud_table = p4d_table[p4d];
+  addr_t *pud_table = (addr_t*)p4d_table[p4d];
 
   if (pud_table[pud] == 0) return 0;
-  addr_t *pmd_table = pud_table[pud];
+  addr_t *pmd_table = (addr_t*)pud_table[pud];
 
   if (pmd_table[pmd] == 0) return 0;
-  addr_t *pt_table =  pmd_table[pmd];
+  addr_t *pt_table =  (addr_t*)pmd_table[pmd];
 
   pte = &pt_table[pt];
 #else	
@@ -269,8 +269,8 @@ int pte_set_entry(struct mm_struct *mm, addr_t pgn, uint64_t pte_val, struct pcb
     if (new_table == NULL) return -1;
     memset(new_table, 0, entries * sizeof(addr_t));
 
-    if (is_krnl_mm) krnl->krnl_pgd[pgd] = new_table;
-    else krnl->mm->pgd[pgd] = new_table;
+    if (is_krnl_mm) krnl->krnl_pgd[pgd] = (addr_t)new_table;
+    else krnl->mm->pgd[pgd] = (addr_t)new_table;
   }
   p4d_table = (is_krnl_mm) ?  krnl->krnl_pgd[pgd] : krnl->mm->pgd[pgd];
 
@@ -282,7 +282,7 @@ int pte_set_entry(struct mm_struct *mm, addr_t pgn, uint64_t pte_val, struct pcb
       return -1;
 
     memset(new_table, 0, entries * sizeof(addr_t));
-    p4d_table[p4d] = new_table;
+    p4d_table[p4d] = (addr_t)new_table;
   }
   addr_t *pud_table = p4d_table[p4d];
 
@@ -293,7 +293,7 @@ int pte_set_entry(struct mm_struct *mm, addr_t pgn, uint64_t pte_val, struct pcb
       return -1;
 
     memset(new_table, 0, entries * sizeof(addr_t));
-    pud_table[pud] = new_table;
+    pud_table[pud] = (addr_t)new_table;
   }
   addr_t *pmd_table = pud_table[pud];
 
@@ -304,7 +304,7 @@ int pte_set_entry(struct mm_struct *mm, addr_t pgn, uint64_t pte_val, struct pcb
       return -1;
 
     memset(new_table, 0, entries * sizeof(addr_t));
-    pmd_table[pmd] = new_table;
+    pmd_table[pmd] = (addr_t)new_table;
   }
   addr_t *pt_table =  pmd_table[pmd];
 
