@@ -118,7 +118,7 @@ int pte_set_swap(struct pcb_t *caller, addr_t pgn, int swptyp, addr_t swpoff)
   // addr_t pt=0;
 	
   // dummy pte alloc to avoid runtime error
-  pte = malloc(sizeof(addr_t));
+  //pte = malloc(sizeof(addr_t));
 #ifdef MM64	
   /* Get value from the system */
   /* TODO Perform multi-level page mapping */
@@ -158,7 +158,7 @@ int pte_set_fpn(struct mm_struct *mm, addr_t pgn, addr_t fpn, struct pcb_t *call
   // addr_t pt=0;
 	
   // dummy pte alloc to avoid runtime error
-  pte = malloc(sizeof(addr_t));
+  //pte = malloc(sizeof(addr_t));
 #ifdef MM64	
   /* Get value from the system */
   /* TODO Perform multi-level page mapping */
@@ -198,14 +198,24 @@ addr_t pte_get_entry(struct mm_struct *mm, addr_t pgn, struct pcb_t *caller)
   addr_t pt=0;
 	
   // dummy pte alloc to avoid runtime error
-  pte = malloc(sizeof(addr_t));
+  //pte = malloc(sizeof(addr_t));
 #ifdef MM64	
   /* Get value from the system */
   /* TODO Perform multi-level page mapping */
   get_pd_from_pagenum(pgn, &pgd, &p4d, &pud, &pmd, &pt);
-  
-  if (krnl->mm->pgd[pgd] == 0) return 0;
-  addr_t *p4d_table = krnl->mm->pgd[pgd];
+
+  addr_t mask = GENMASK64(MM64_BITS_PER_LONG - 1, PAGING64_ADDR_PGD_HIBIT + 1);
+  addr_t *p4d_table = NULL;
+
+  if ((pgn&mask)>>(PAGING64_ADDR_PGD_HIBIT+1) > 0){
+    if (krnl->krnl_pgd[pgd] == 0) return 0;
+    p4d_table = krnl->krnl_pgd[pgd];
+  }
+
+  else{
+    if (krnl->mm->pgd[pgd] == 0) return 0;
+    p4d_table = krnl->mm->pgd[pgd];
+  }
 
   if (p4d_table[p4d] == 0) return 0;
   addr_t *pud_table = p4d_table[p4d];
@@ -241,22 +251,28 @@ int pte_set_entry(struct mm_struct *mm, addr_t pgn, uint64_t pte_val, struct pcb
   addr_t pt=0;
 	
   // dummy pte alloc to avoid runtime error
-  pte = malloc(sizeof(addr_t));
+  //pte = malloc(sizeof(addr_t));
 #ifdef MM64	
   /* Get value from the system */
   /* TODO Perform multi-level page mapping */
   get_pd_from_pagenum(pgn, &pgd, &p4d, &pud, &pmd, &pt);
 
-  if (krnl->mm->pgd[pgd] == 0){
+  addr_t mask = GENMASK64(MM64_BITS_PER_LONG - 1, PAGING64_ADDR_PGD_HIBIT + 1);
+  int is_krnl_mm = (pgn&mask)>>(PAGING64_ADDR_PGD_HIBIT+1) > 0;
+  addr_t *p4d_table = NULL;
+
+  if (((is_krnl_mm) && (krnl->krnl_pgd[pgd] == 0))
+    ||((!is_krnl_mm) && (krnl->mm->pgd[pgd] == 0)))
+  {
     int entries = 1 << (PAGING64_ADDR_P4D_HIBIT - PAGING64_ADDR_P4D_LOBIT + 1);
     addr_t *new_table = malloc(entries * sizeof(addr_t));
-    if (new_table == NULL) 
-      return -1;
-
+    if (new_table == NULL) return -1;
     memset(new_table, 0, entries * sizeof(addr_t));
-    krnl->mm->pgd[pgd]  = new_table;
+
+    if (is_krnl_mm) krnl->krnl_pgd[pgd] = new_table;
+    else krnl->mm->pgd[pgd] = new_table;
   }
-  addr_t *p4d_table = krnl->mm->pgd[pgd];
+  p4d_table = (is_krnl_mm) ?  krnl->krnl_pgd[pgd] : krnl->mm->pgd[pgd];
 
   if (p4d_table[p4d] == 0)
   {

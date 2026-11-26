@@ -476,14 +476,15 @@ pthread_mutex_lock(&kmm_lock);
   addr_t mask = GENMASK64(MM64_BITS_PER_LONG - 1, PAGING64_ADDR_PGD_HIBIT + 1);
 
   if (size <= PAGING64_PAGESZ && MEMPHY_get_freefp(krnl->mram, &fpn) == 0){
-    addr_t addr = (fpn << PAGING64_ADDR_PT_SHIFT);
-    SETBIT(addr, mask);
 
-    /*if (pte_set_fpn(caller->mm, addr >> PAGING64_ADDR_PT_SHIFT, fpn, caller) == -1){
+    if (pte_set_fpn(caller->mm, (fpn | mask), fpn, caller) == -1){
       MEMPHY_put_freefp(krnl->mram, fpn);
       pthread_mutex_unlock(&kmm_lock);
       return -1;
-    } update pte_set_fpn to walk krnl->krnl_pgd on condition first*/
+    }
+
+    addr_t addr = (fpn << PAGING64_ADDR_PT_SHIFT);
+    SETBIT(addr, mask);
 
     krnl->symrgtbl[rgid].vmaid = vmaid;
     krnl->symrgtbl[rgid].rg_start = addr;
@@ -497,7 +498,7 @@ pthread_mutex_lock(&kmm_lock);
   //krnl->symrgtbl...
   //krnl->krnl_pgd ...
 pthread_mutex_unlock(&kmm_lock);
-  return -1; //temporary
+  return -1;
 
 }
 
