@@ -363,25 +363,48 @@ addr_t alloc_pages_range(struct pcb_t *caller, int req_pgnum, struct framephy_st
   struct framephy_struct *newfp_str = NULL;
   struct framephy_struct **cur = frm_lst;
 
-  /* TODO: allocate the page 
-  //caller-> ...
-  //frm_lst-> ...
-*/
+  /* TODO: allocate the page */
+  struct memphy_struct *mram = caller->krnl->mram;
 
-
-/*
   for (pgit = 0; pgit < req_pgnum; pgit++)
   {
     // TODO: allocate the page 
-    if (MEMPHY_get_freefp(caller->mram, &fpn) == 0)
+    if (MEMPHY_get_freefp(mram, &fpn) == 0)
     {
+      newfp_str = malloc(sizeof(struct framephy_struct));
+      if(newfp_str == NULL){
+        MEMPHY_put_freefp(mram, fpn);
+
+        struct framephy_struct *del_lst = *frm_lst;
+        while(del_lst != NULL){
+          struct framephy_struct *temp = del_lst->fp_next;
+          MEMPHY_put_freefp(mram, del_lst->fpn);
+          free(del_lst);
+          del_lst = temp;
+        }
+        *frm_lst = NULL;
+        return -3000;
+      }
+
       newfp_str->fpn = fpn;
+      newfp_str->fp_next = NULL;
+
+      *cur = newfp_str;
+      cur = &newfp_str->fp_next;
     }
     else
     { // TODO: ERROR CODE of obtaining somes but not enough frames
+      struct framephy_struct *del_lst = *frm_lst;
+      while(del_lst != NULL){
+        struct framephy_struct *temp = del_lst->fp_next;
+        MEMPHY_put_freefp(mram, del_lst->fpn);
+        free(del_lst);
+        del_lst = temp;
+      }
+      *frm_lst = NULL;
+      return -3000;
     }
   }
-*/
 
 
   /* End TODO */
