@@ -490,9 +490,9 @@ int __swap_cp_page(struct memphy_struct *mpsrc, addr_t srcfpn,
 int init_mm(struct mm_struct *mm, struct pcb_t *caller)
 {
   struct vm_area_struct *vma0 = malloc(sizeof(struct vm_area_struct));
-
+int entries = 1 << (PAGING64_ADDR_PGD_HIBIT - PAGING64_ADDR_PGD_LOBIT + 1);
   /* TODO init page table directory */
-    mm->pgd = calloc(512, sizeof(addr_t));
+    mm->pgd = malloc(entries * sizeof(addr_t));
     mm->p4d = NULL;
     mm->pud = NULL;
     mm->pmd = NULL;
@@ -627,7 +627,7 @@ int print_pgtbl(struct pcb_t *caller, addr_t start, addr_t end)
   get_pd_from_address(start, &pgd, &p4d, &pud, &pmd, &pt);
 
   /* TODO traverse the page map and dump the page directory entries */
-
+  printf("PGD=%lx, P4D=%lx, PUD=%lx, PMD=%lx, PT=%lx\n", pgd, p4d, pud, pmd, pt);
   return 0;
 }
 
