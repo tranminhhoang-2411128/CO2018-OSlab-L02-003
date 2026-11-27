@@ -118,7 +118,7 @@ int pte_set_swap(struct pcb_t *caller, addr_t pgn, int swptyp, addr_t swpoff)
   // addr_t pt=0;
 	
   // dummy pte alloc to avoid runtime error
-  //pte = malloc(sizeof(addr_t));
+  pte = malloc(sizeof(addr_t));
 #ifdef MM64	
   /* Get value from the system */
   /* TODO Perform multi-level page mapping */
@@ -158,7 +158,7 @@ int pte_set_fpn(struct mm_struct *mm, addr_t pgn, addr_t fpn, struct pcb_t *call
   // addr_t pt=0;
 	
   // dummy pte alloc to avoid runtime error
-  //pte = malloc(sizeof(addr_t));
+  pte = malloc(sizeof(addr_t));
 #ifdef MM64	
   /* Get value from the system */
   /* TODO Perform multi-level page mapping */
@@ -198,7 +198,7 @@ addr_t pte_get_entry(struct mm_struct *mm, addr_t pgn, struct pcb_t *caller)
   addr_t pt=0;
 	
   // dummy pte alloc to avoid runtime error
-  //pte = malloc(sizeof(addr_t));
+  pte = malloc(sizeof(addr_t));
 #ifdef MM64	
   /* Get value from the system */
   /* TODO Perform multi-level page mapping */
@@ -251,7 +251,7 @@ int pte_set_entry(struct mm_struct *mm, addr_t pgn, uint64_t pte_val, struct pcb
   addr_t pt=0;
 	
   // dummy pte alloc to avoid runtime error
-  //pte = malloc(sizeof(addr_t));
+  pte = malloc(sizeof(addr_t));
 #ifdef MM64	
   /* Get value from the system */
   /* TODO Perform multi-level page mapping */
@@ -633,17 +633,21 @@ int print_pgtbl(struct pcb_t *caller, addr_t start, addr_t end)
 {
 //addr_t pgn = ...
 //addr_t pgit = ...
-//struct mm_struct *mm = ...
+struct mm_struct *mm = caller->mm;
   addr_t pgd=0;
   addr_t p4d=0;
   addr_t pud=0;
   addr_t pmd=0;
   addr_t pt=0;
 
-  get_pd_from_address(start, &pgd, &p4d, &pud, &pmd, &pt);
-
   /* TODO traverse the page map and dump the page directory entries */
-  printf("PGD=%lx, P4D=%lx, PUD=%lx, PMD=%lx, PT=%lx\n", pgd, p4d, pud, pmd, pt);
+    for (addr_t rgit = start; (rgit < PAGING_MAX_SYMTBL_SZ) && (rgit <= end); rgit++){
+      struct vm_rg_struct *rg = &mm->symrgtbl[rgit];
+      if (!(rg->rg_start == rg->rg_end)){
+        get_pd_from_address(rg->rg_start, &pgd, &p4d, &pud, &pmd, &pt);
+        printf("PGD=%lx, P4D=%lx, PUD=%lx, PMD=%lx, PT=%lx\n", pgd, p4d, pud, pmd, pt);
+      }
+  }
   return 0;
 }
 
