@@ -272,7 +272,7 @@ int pte_set_entry(struct mm_struct *mm, addr_t pgn, uint64_t pte_val, struct pcb
     if (is_krnl_mm) krnl->krnl_pgd[pgd] = (addr_t)new_table;
     else krnl->mm->pgd[pgd] = (addr_t)new_table;
   }
-  p4d_table = (is_krnl_mm) ?  krnl->krnl_pgd[pgd] : krnl->mm->pgd[pgd];
+  p4d_table = (is_krnl_mm) ?  (addr_t*)krnl->krnl_pgd[pgd] : (addr_t*)krnl->mm->pgd[pgd];
 
   if (p4d_table[p4d] == 0)
   {
@@ -284,7 +284,7 @@ int pte_set_entry(struct mm_struct *mm, addr_t pgn, uint64_t pte_val, struct pcb
     memset(new_table, 0, entries * sizeof(addr_t));
     p4d_table[p4d] = (addr_t)new_table;
   }
-  addr_t *pud_table = p4d_table[p4d];
+  addr_t *pud_table = (addr_t*)p4d_table[p4d];
 
   if (pud_table[pud] == 0)  {
     int entries = 1 << (PAGING64_ADDR_PMD_HIBIT - PAGING64_ADDR_PMD_LOBIT + 1);
@@ -295,7 +295,7 @@ int pte_set_entry(struct mm_struct *mm, addr_t pgn, uint64_t pte_val, struct pcb
     memset(new_table, 0, entries * sizeof(addr_t));
     pud_table[pud] = (addr_t)new_table;
   }
-  addr_t *pmd_table = pud_table[pud];
+  addr_t *pmd_table = (addr_t*)pud_table[pud];
 
   if (pmd_table[pmd] == 0)  {
     int entries = 1 << (PAGING64_ADDR_PT_HIBIT - PAGING64_ADDR_PT_LOBIT + 1);
@@ -306,7 +306,7 @@ int pte_set_entry(struct mm_struct *mm, addr_t pgn, uint64_t pte_val, struct pcb
     memset(new_table, 0, entries * sizeof(addr_t));
     pmd_table[pmd] = (addr_t)new_table;
   }
-  addr_t *pt_table =  pmd_table[pmd];
+  addr_t *pt_table =  (addr_t*)pmd_table[pmd];
 
   pt_table[pt] = pte_val;
 #else	
@@ -642,10 +642,15 @@ struct mm_struct *mm = caller->mm;
 
   /* TODO traverse the page map and dump the page directory entries */
     for (addr_t rgit = start; (rgit < PAGING_MAX_SYMTBL_SZ) && (rgit <= end); rgit++){
-      struct vm_rg_struct *rg = &mm->symrgtbl[rgit];
-      if (!(rg->rg_start == rg->rg_end)){
-        get_pd_from_address(rg->rg_start, &pgd, &p4d, &pud, &pmd, &pt);
-        printf("PGD=%lx, P4D=%lx, PUD=%lx, PMD=%lx, PT=%lx\n", pgd, p4d, pud, pmd, pt);
+      struct vm_rg_struct rg = mm->symrgtbl[rgit];
+      if (!(rg.rg_start == rg.rg_end)){
+        get_pd_from_address(rg.rg_start, &pgd, &p4d, &pud, &pmd, &pt);
+        addr_t *p4d_table = (addr_t *)caller->krnl->mm->pgd[pgd];
+        addr_t *pud_table = (addr_t *)p4d_table[p4d];
+        addr_t *pmd_table = (addr_t *)pud_table[pud];
+        addr_t *pt_table = (addr_t *)pmd_table[pmd];
+        printf("PGD="FORMATX_ADDR", P4D=" FORMATX_ADDR ", PUD=" FORMATX_ADDR ", PMD=" FORMATX_ADDR ", PT=" FORMATX_ADDR "\n"
+              , caller->krnl->mm->pgd, p4d_table, pud_table, pmd_table, pt_table);
       }
   }
   return 0;
