@@ -173,6 +173,7 @@ int inc_vma_limit(struct pcb_t *caller, int vmaid, addr_t inc_sz)
   }
   
   struct framephy_struct *frames = NULL;
+  if (alloc_pages_range(caller, inc_num_page, &frames) < 0) return -1;
   if(vmap_page_range(caller, area->rg_start, inc_num_page, frames, newrg) < 0){
     free(newrg);
     free(area);

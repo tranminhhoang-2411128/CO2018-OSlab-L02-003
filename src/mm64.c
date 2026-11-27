@@ -341,7 +341,7 @@ addr_t vmap_page_range(struct pcb_t *caller,           // process call
                     struct framephy_struct *frames, // list of the mapped frames
                     struct vm_rg_struct *ret_rg)    // return mapped region, the real mapped fp
 {                                                   // no guarantee all given pages are mapped
-struct framephy_struct *fpit;
+struct framephy_struct *fpit = frames;
 int pgit = 0;
 addr_t pgn;
 
@@ -357,7 +357,12 @@ addr_t pgn;
    *                    caller->krnl->mm->pud...
    *                    ...
    */
-
+for (pgit; pgit < pgnum; pgit++){
+  pgn = (addr + pgit * PAGING64_PAGESZ) >> PAGING64_ADDR_PT_SHIFT;
+  if (pte_set_fpn(caller->mm, pgn, fpit->fpn, caller) == -1) return -1;
+  enlist_pgn_node(&caller->mm->fifo_pgn, pgn);
+  fpit = fpit->fp_next;
+}
   /* Tracking for later page replacement activities (if needed)
    * Enqueue new usage page */
   //enlist_pgn_node(&caller->krnl->mm->fifo_pgn, pgn64 + pgit);
