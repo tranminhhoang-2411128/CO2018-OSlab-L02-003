@@ -130,7 +130,7 @@ struct krnl_t
 #endif
 #ifdef MM_PAGING
 	struct mm_struct *mm;
-	// struct vm_rg_struct symrgtbl[PAGING_MAX_SYMTBL_SZ];
+	struct vm_rg_struct symrgtbl[PAGING_MAX_SYMTBL_SZ];
 	struct memphy_struct *mram;
 	struct memphy_struct **mswp;
 	struct memphy_struct *active_mswp;

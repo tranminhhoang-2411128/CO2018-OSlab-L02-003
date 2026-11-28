@@ -203,18 +203,28 @@ addr_t pte_get_entry(struct mm_struct *mm, addr_t pgn, struct pcb_t *caller)
   /* Get value from the system */
   /* TODO Perform multi-level page mapping */
   get_pd_from_pagenum(pgn, &pgd, &p4d, &pud, &pmd, &pt);
-  
-  if (krnl->mm->pgd[pgd] == 0) return 0;
-  addr_t *p4d_table = krnl->mm->pgd[pgd];
+
+  addr_t mask = GENMASK64(MM64_BITS_PER_LONG - 1, PAGING64_ADDR_PGD_HIBIT + 1);
+  addr_t *p4d_table = NULL;
+
+  if ((pgn&mask)>>(PAGING64_ADDR_PGD_HIBIT+1) > 0){
+    if (krnl->krnl_pgd[pgd] == 0) return 0;
+    p4d_table = (addr_t*)krnl->krnl_pgd[pgd];
+  }
+
+  else{
+    if (mm->pgd[pgd] == 0) return 0;
+    p4d_table = (addr_t*)mm->pgd[pgd];
+  }
 
   if (p4d_table[p4d] == 0) return 0;
-  addr_t *pud_table = p4d_table[p4d];
+  addr_t *pud_table = (addr_t*)p4d_table[p4d];
 
   if (pud_table[pud] == 0) return 0;
-  addr_t *pmd_table = pud_table[pud];
+  addr_t *pmd_table = (addr_t*)pud_table[pud];
 
   if (pmd_table[pmd] == 0) return 0;
-  addr_t *pt_table =  pmd_table[pmd];
+  addr_t *pt_table =  (addr_t*)pmd_table[pmd];
 
   pte = &pt_table[pt];
 #else	
@@ -247,16 +257,22 @@ int pte_set_entry(struct mm_struct *mm, addr_t pgn, uint64_t pte_val, struct pcb
   /* TODO Perform multi-level page mapping */
   get_pd_from_pagenum(pgn, &pgd, &p4d, &pud, &pmd, &pt);
 
-  if (krnl->mm->pgd[pgd] == 0){
+  addr_t mask = GENMASK64(MM64_BITS_PER_LONG - 1, PAGING64_ADDR_PGD_HIBIT + 1);
+  int is_krnl_mm = (pgn&mask)>>(PAGING64_ADDR_PGD_HIBIT+1) > 0;
+  addr_t *p4d_table = NULL;
+
+  if (((is_krnl_mm) && (krnl->krnl_pgd[pgd] == 0))
+    ||((!is_krnl_mm) && (mm->pgd[pgd] == 0)))
+  {
     int entries = 1 << (PAGING64_ADDR_P4D_HIBIT - PAGING64_ADDR_P4D_LOBIT + 1);
     addr_t *new_table = malloc(entries * sizeof(addr_t));
-    if (new_table == NULL) 
-      return -1;
-
+    if (new_table == NULL) return -1;
     memset(new_table, 0, entries * sizeof(addr_t));
-    krnl->mm->pgd[pgd]  = new_table;
+
+    if (is_krnl_mm) krnl->krnl_pgd[pgd] = (addr_t)new_table;
+    else mm->pgd[pgd] = (addr_t)new_table;
   }
-  addr_t *p4d_table = krnl->mm->pgd[pgd];
+  p4d_table = (is_krnl_mm) ?  (addr_t*)krnl->krnl_pgd[pgd] : (addr_t*)mm->pgd[pgd];
 
   if (p4d_table[p4d] == 0)
   {
@@ -266,9 +282,9 @@ int pte_set_entry(struct mm_struct *mm, addr_t pgn, uint64_t pte_val, struct pcb
       return -1;
 
     memset(new_table, 0, entries * sizeof(addr_t));
-    p4d_table[p4d] = new_table;
+    p4d_table[p4d] = (addr_t)new_table;
   }
-  addr_t *pud_table = p4d_table[p4d];
+  addr_t *pud_table = (addr_t*)p4d_table[p4d];
 
   if (pud_table[pud] == 0)  {
     int entries = 1 << (PAGING64_ADDR_PMD_HIBIT - PAGING64_ADDR_PMD_LOBIT + 1);
@@ -277,9 +293,9 @@ int pte_set_entry(struct mm_struct *mm, addr_t pgn, uint64_t pte_val, struct pcb
       return -1;
 
     memset(new_table, 0, entries * sizeof(addr_t));
-    pud_table[pud] = new_table;
+    pud_table[pud] = (addr_t)new_table;
   }
-  addr_t *pmd_table = pud_table[pud];
+  addr_t *pmd_table = (addr_t*)pud_table[pud];
 
   if (pmd_table[pmd] == 0)  {
     int entries = 1 << (PAGING64_ADDR_PT_HIBIT - PAGING64_ADDR_PT_LOBIT + 1);
@@ -288,9 +304,9 @@ int pte_set_entry(struct mm_struct *mm, addr_t pgn, uint64_t pte_val, struct pcb
       return -1;
 
     memset(new_table, 0, entries * sizeof(addr_t));
-    pmd_table[pmd] = new_table;
+    pmd_table[pmd] = (addr_t)new_table;
   }
-  addr_t *pt_table =  pmd_table[pmd];
+  addr_t *pt_table =  (addr_t*)pmd_table[pmd];
 
   pt_table[pt] = pte_val;
 #else	
@@ -325,7 +341,7 @@ addr_t vmap_page_range(struct pcb_t *caller,           // process call
                     struct framephy_struct *frames, // list of the mapped frames
                     struct vm_rg_struct *ret_rg)    // return mapped region, the real mapped fp
 {                                                   // no guarantee all given pages are mapped
-struct framephy_struct *fpit;
+struct framephy_struct *fpit = frames;
 int pgit = 0;
 addr_t pgn;
 
@@ -341,7 +357,12 @@ addr_t pgn;
    *                    caller->krnl->mm->pud...
    *                    ...
    */
-
+for (pgit; pgit < pgnum; pgit++){
+  pgn = (addr + pgit * PAGING64_PAGESZ) >> PAGING64_ADDR_PT_SHIFT;
+  if (pte_set_fpn(caller->mm, pgn, fpit->fpn, caller) == -1) return -1;
+  enlist_pgn_node(&caller->mm->fifo_pgn, pgn);
+  fpit = fpit->fp_next;
+}
   /* Tracking for later page replacement activities (if needed)
    * Enqueue new usage page */
   //enlist_pgn_node(&caller->krnl->mm->fifo_pgn, pgn64 + pgit);
@@ -490,15 +511,15 @@ int __swap_cp_page(struct memphy_struct *mpsrc, addr_t srcfpn,
 int init_mm(struct mm_struct *mm, struct pcb_t *caller)
 {
   struct vm_area_struct *vma0 = malloc(sizeof(struct vm_area_struct));
-
+int entries = 1 << (PAGING64_ADDR_PGD_HIBIT - PAGING64_ADDR_PGD_LOBIT + 1);
   /* TODO init page table directory */
-    mm->pgd = calloc(512, sizeof(addr_t));
+    mm->pgd = malloc(entries * sizeof(addr_t));
     mm->p4d = NULL;
     mm->pud = NULL;
     mm->pmd = NULL;
     mm->pt = NULL;
 
-
+    memset(mm->pgd, 0, entries * sizeof(addr_t));
   /* By default the owner comes with at least one vma */
   vma0->vm_id = 0;
   vma0->vm_start = 0;
@@ -617,17 +638,26 @@ int print_pgtbl(struct pcb_t *caller, addr_t start, addr_t end)
 {
 //addr_t pgn = ...
 //addr_t pgit = ...
-//struct mm_struct *mm = ...
+struct mm_struct *mm = caller->mm;
   addr_t pgd=0;
   addr_t p4d=0;
   addr_t pud=0;
   addr_t pmd=0;
   addr_t pt=0;
 
-  get_pd_from_address(start, &pgd, &p4d, &pud, &pmd, &pt);
-
   /* TODO traverse the page map and dump the page directory entries */
-
+    for (addr_t rgit = start; (rgit < PAGING_MAX_SYMTBL_SZ) && (rgit <= end); rgit++){
+      struct vm_rg_struct rg = mm->symrgtbl[rgit];
+      if (!(rg.rg_start == rg.rg_end)){
+        get_pd_from_address(rg.rg_start, &pgd, &p4d, &pud, &pmd, &pt);
+        addr_t *p4d_table = (addr_t *)caller->mm->pgd[pgd];
+        addr_t *pud_table = (addr_t *)p4d_table[p4d];
+        addr_t *pmd_table = (addr_t *)pud_table[pud];
+        addr_t *pt_table = (addr_t *)pmd_table[pmd];
+        printf("[PID:%d] PGD="FORMATX_ADDR", P4D=" FORMATX_ADDR ", PUD=" FORMATX_ADDR ", PMD=" FORMATX_ADDR ", PT=" FORMATX_ADDR "\n"
+              ,caller->pid, caller->mm->pgd, p4d_table, pud_table, pmd_table, pt_table);
+      }
+  }
   return 0;
 }
 

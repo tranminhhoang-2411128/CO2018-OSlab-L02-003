@@ -153,6 +153,8 @@ static void * ld_routine(void * args) {
 	os.krnl_pud = NULL;
 	os.krnl_pmd = NULL;
 	os.krnl_pt = NULL;
+
+	memset(os.krnl_pgd, 0, PAGING64_MAX_PGN * sizeof(addr_t));
 #else
 	os.krnl_pgd = (uint32_t*)malloc(PAGING_MAX_PGN * sizeof(uint32_t));
 #endif
