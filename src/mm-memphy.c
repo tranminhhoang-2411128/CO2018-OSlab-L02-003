@@ -226,9 +226,7 @@ int init_memphy(struct memphy_struct *mp, addr_t max_size, int randomflg)
 
    if (!mp->rdmflg) /* Not Ramdom acess device, then it serial device*/
       mp->cursor = 0;
-  //Initialization to avoid garbage data
-  mp->free_fp_list = NULL;
-  mp->used_fp_list = NULL;
+
    return 0;
 }
 
