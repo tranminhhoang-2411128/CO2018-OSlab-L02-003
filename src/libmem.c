@@ -99,7 +99,7 @@ int __alloc(struct pcb_t *caller, int vmaid, int rgid, addr_t size, addr_t *allo
   inc_sz = inc_sz + 1;
 
   old_sbrk = cur_vma->sbrk;
-
+  addr_t old_end = cur_vma->vm_end;
   /* TODO INCREASE THE LIMIT
    * SYSCALL 1 sys_memmap
    */
@@ -112,6 +112,10 @@ int __alloc(struct pcb_t *caller, int vmaid, int rgid, addr_t size, addr_t *allo
   regs.a3 = PAGING_PAGE_ALIGNSZ(size);
 #endif  
   _syscall(caller->krnl, caller->pid, 17, &regs); /* SYSCALL 17 sys_memmap */
+  if (cur_vma->vm_end == old_end){
+    pthread_mutex_unlock(&mmvm_lock);
+    return -1;
+  }
   /*Successful increase limit */
   caller->mm->symrgtbl[rgid].rg_start = old_sbrk;
   caller->mm->symrgtbl[rgid].rg_end = old_sbrk + size;
